@@ -12,9 +12,92 @@ struct Argumnets {
 struct Process {
     char name;
     int arrivalTime;
-    int serviceTime;
+    int serviceTime; // burst time
     int priority;  // for Aging
 };
+
+void FCFS(Argumnets args, vector<Process> process){
+    int finishTime[args.numberOfProcess];
+    int TAT[args.numberOfProcess];
+    float normTurn[args.numberOfProcess];
+    
+    if (args.trace_stats == "trace"){
+        cout << "FCFS  ";
+        for (int i = 0; i <= args.lastInstance; i++) cout << i % 10 << " ";
+        cout << endl;
+        cout << "------------------------------------------------" << endl;
+
+        for (int i = 0; i < args.numberOfProcess; i++){
+            finishTime[i] = (i == 0 ? process[i].arrivalTime : finishTime[i - 1]) + process[i].serviceTime;
+
+            cout << process[i].name << "     ";
+
+            for (int j = 0; j <= args.lastInstance; j++) {
+                if (j >= process[i].arrivalTime && j < finishTime[i]) {
+                    if (j < finishTime[i] - process[i].serviceTime) {
+                        cout << "|.";
+                    } else {
+                        cout << "|*";
+                    }
+                } else {
+                    cout << "| ";
+                }
+            }
+            cout << endl;
+        }
+        cout << "------------------------------------------------" << endl << endl ;
+    }
+    else if (args.trace_stats == "stats"){
+        cout << "FCFS" << endl;
+        for (int i = 0; i < args.numberOfProcess; i++){
+            finishTime[i] = (i == 0 ? process[i].arrivalTime : finishTime[i - 1]) + process[i].serviceTime;
+            TAT[i] = finishTime[i] - process[i].arrivalTime;
+            normTurn[i] = (float)TAT[i] / process[i].serviceTime;  
+        }
+        cout << "Process    |";
+        for (const auto& p : process) {
+            cout << setw(3) << p.name << setw(3) << "|";
+        }
+        cout << endl;
+
+        cout << "Arrival    |";
+        for (const auto& p : process) {
+            cout << setw(3) << p.arrivalTime << setw(3) << "|";
+        }
+        cout << endl;
+
+        cout << "Service    |";
+        for (const auto& p : process) {
+            cout << setw(3) << p.serviceTime << setw(3) << "|";
+        }
+        cout << " Mean|" << endl;
+
+        cout << "Finish     |";
+        for (int i = 0; i < args.numberOfProcess; i++) {
+            cout << setw(3) << finishTime[i] << setw(3) << "|";
+        }
+        cout << "-----|" << endl;
+
+        cout << "Turnaround |";
+        float totalTAT = 0;
+        for (int i = 0; i < args.numberOfProcess; i++) { 
+            cout << setw(3) << TAT[i] << setw(3) << "|";
+            totalTAT += TAT[i];
+        }
+        cout << fixed << setprecision(2) << " " << totalTAT / args.numberOfProcess << "|" << endl;
+
+        cout << "NormTurn   |";
+        float totalNormTurn = 0;
+        for (int i = 0; i < args.numberOfProcess; i++) { 
+            cout << fixed << setprecision(2) << setw(5) << normTurn[i] << "|";
+            totalNormTurn += normTurn[i];
+        }
+        cout << fixed << setprecision(2) << " " << totalNormTurn / args.numberOfProcess << "|" << endl << endl;
+    }
+    else{
+        cout << "Invalid Mode" << endl;
+    }   
+}
 
 int main(int argc, char** argv)
 {
@@ -24,7 +107,6 @@ int main(int argc, char** argv)
     string trace_stats;
     getline(cin, trace_stats);
     args.trace_stats = trace_stats;
-    cout << "mode: "<< args.trace_stats << endl;
 
     // line 2
     string policy;
@@ -38,20 +120,16 @@ int main(int argc, char** argv)
         args.algorithm = stoi(policy);
         args.quantum = -1;
     }
-    cout <<"algorithm: "<< args.algorithm << endl;
-    cout <<"quantum: "<< args.quantum << endl;
 
     // line 3
     int lastInstance;
     cin >> lastInstance;
     args.lastInstance = lastInstance;
-    cout << "last: "<< args.lastInstance << endl;
 
     // line 4
     int numberOfProcess;
     cin >> numberOfProcess;
     args.numberOfProcess = numberOfProcess;
-    cout << "number: "<< args.numberOfProcess << endl;
     cin.ignore();
 
     // line 5
@@ -80,18 +158,18 @@ int main(int argc, char** argv)
             getline(ss, t, ',');
             p.serviceTime = stoi(t);
         }
-        cout << "name:" << p.name << endl;
-        cout << "arrival: " << p.arrivalTime << endl;
-        cout << "service: " << p.serviceTime << endl;
-        cout << "priority: " << p.priority << endl;
         process.push_back(p);
     }
+
+    sort( process.begin(), process.end(),
+              []( const Process &p1, const Process &p2 )
+                 { return ( p1.arrivalTime < p2.arrivalTime ); });
 
     // Algorithms
     switch (args.algorithm)
     {
     case 1:
-        // FCFS()
+        FCFS(args, process);
         break;
     case 2:
         // RR()
