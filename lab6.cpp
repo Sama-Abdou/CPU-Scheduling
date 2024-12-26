@@ -28,6 +28,15 @@ void renderTimeline(vector<Process> &process){
             }
         }
 }
+void clearAllTemps(vector<Process> &process){
+    process_timeline.clear();
+    for(auto& it_process:process){
+        process_timeline.push_back({it_process.name});
+    }
+    finishTime.clear();
+    TAT.clear();
+    normTurn.clear();
+}
 
 bool sortByRemainingTime(const Process& p1, const Process& p2){
     return p1.remainingTime > p2.remainingTime;
@@ -71,6 +80,53 @@ void ShortestRemainingTime(vector<Process> &process, Arguments args){
         
 
 
+    }
+}
+void HighestResponseRatioNext(vector<Process> &process, Arguments args){
+    int i=0;
+    while(i<args.lastInstance){
+        pair<int, char> max_response_ratio = {INT_MIN,'-'};
+        for(auto& it_process:process){
+            if(it_process.state!= FINISHED && it_process.arrivalTime<=i){
+                if(it_process.state == NOT_ARRIVED || it_process.state == RUNNING )
+                    it_process.state = WAITING;
+                int waiting = i-it_process.arrivalTime;
+                int response_ratio = (waiting + it_process.serviceTime_priority)/it_process.serviceTime_priority;
+                if(response_ratio>max_response_ratio.first){
+                    max_response_ratio.second = it_process.name;
+                    max_response_ratio.first = response_ratio;
+                }
+            }
+        }
+    
+        for(auto& it_process:process){
+            if(max_response_ratio.second==it_process.name){
+                it_process.state = RUNNING;
+                it_process.remainingTime--;
+                renderTimeline(process);
+                while(it_process.remainingTime){ // Non pre-emptive algorithm
+                    i++;
+                    for(auto& it_process_check:process){
+                        if(it_process_check.state!= FINISHED && it_process_check.arrivalTime<=i){
+                             if(it_process_check.state == NOT_ARRIVED || it_process_check.state == RUNNING )
+                                   it_process_check.state = WAITING;
+                        }
+                    }
+                    it_process.state = RUNNING;
+                    it_process.remainingTime--;
+                    renderTimeline(process);
+                }
+                it_process.state=FINISHED;
+                finishTime[it_process.name] = i+1;
+                TAT[it_process.name] = finishTime[it_process.name] - it_process.arrivalTime;
+                normTurn[it_process.name] = (float) (TAT[it_process.name])/ it_process.serviceTime_priority;
+                break;
+
+
+            }
+    
+        }
+        i++;
     }
 }
 
@@ -159,6 +215,7 @@ int main(int argc, char** argv)
 
     // Algorithms
     for(auto algorithm: args.algorithms){
+        vector<Process> process_copy = process;
         switch (algorithm.first) 
         {
         case 1:
@@ -171,14 +228,20 @@ int main(int argc, char** argv)
             // SPN()
             break;
         case 4:
-            ShortestRemainingTime(process,args);
+            ShortestRemainingTime(process_copy,args);
             if(args.trace_stats=="trace")
                 printTrace(schedueling_algorithms[algorithm.first],args.lastInstance,process_timeline);
             if(args.trace_stats=="stats")
-                printStats(schedueling_algorithms[algorithm.first],process,finishTime,TAT,normTurn,args.numberOfProcess);
+                printStats(schedueling_algorithms[algorithm.first],process_copy,finishTime,TAT,normTurn,args.numberOfProcess);
+            clearAllTemps(process);
             break;
         case 5:
-            // HRRN()
+            HighestResponseRatioNext(process_copy,args);
+            if(args.trace_stats=="trace")
+                printTrace(schedueling_algorithms[algorithm.first],args.lastInstance,process_timeline);
+            if(args.trace_stats=="stats")
+                printStats(schedueling_algorithms[algorithm.first],process_copy,finishTime,TAT,normTurn,args.numberOfProcess);
+            clearAllTemps(process);
             break;
         case 6:
             // FB-1()
@@ -194,6 +257,7 @@ int main(int argc, char** argv)
             break;
         }
     }
+    
     
     
     return 0;
