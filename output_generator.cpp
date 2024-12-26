@@ -11,7 +11,7 @@ void printFooter() {
     cout << string(48, '-') << endl << endl;
 }
 
-void printStats(string name, vector<Process> &process, vector<int> &finishTime, vector<int> &TAT, vector<float> &normTurn, int numberOfProcess) {
+void printStats(string name, vector<Process> &process, unordered_map<char,int> &finishTime, unordered_map<char,int> &TAT, unordered_map<char,float> &normTurn, int numberOfProcess) {
     float totalTAT = 0, totalNormTurn = 0;
     cout << name << endl;
     cout << "Process    |";
@@ -34,21 +34,21 @@ void printStats(string name, vector<Process> &process, vector<int> &finishTime, 
 
     cout << "Finish     |";
     for (int i = 0; i < numberOfProcess; i++) {
-        cout << setw(3) << finishTime[i] << setw(3) << "|";
+        cout << setw(3) << finishTime[process[i].name] << setw(3) << "|";
     }
     cout << "-----|" << endl;
 
     cout << "Turnaround |";
     for (int i = 0; i < numberOfProcess; i++) {
-        cout << setw(3) << TAT[i] << setw(3) << "|";
-        totalTAT += TAT[i];
+        cout << setw(3) << TAT[process[i].name] << setw(3) << "|";
+        totalTAT += TAT[process[i].name];
     }
     cout << fixed << setprecision(2) << " " << totalTAT / numberOfProcess << "|" << endl;
 
     cout << "NormTurn   |";
     for (int i = 0; i < numberOfProcess; i++) {
-        cout << fixed << setprecision(2) << setw(5) << normTurn[i] << "|";
-        totalNormTurn += normTurn[i];
+        cout << fixed << setprecision(2) << setw(5) << normTurn[process[i].name] << "|";
+        totalNormTurn += normTurn[process[i].name];
     }
     cout << fixed << setprecision(2) << " " << totalNormTurn / numberOfProcess << "|" << endl << endl;
 }

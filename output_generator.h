@@ -5,7 +5,7 @@
 
 void printHeader(string name, int lastInstance);
 void printFooter();
-void printStats(string name, vector<Process> &process, vector<int> finishTime, vector<int> TAT, vector<float> normTurn, int numberOfProcess);
+void printStats(string name, vector<Process> &process, unordered_map<char,int> &finishTime, unordered_map<char,int> &TAT, unordered_map<char,float> &normTurn, int numberOfProcess);
 void printTrace(string name, int lastInstance, vector<vector<char>> &processes_timeline);
 
 

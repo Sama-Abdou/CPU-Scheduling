@@ -1,6 +1,79 @@
 #include "lab6.h"
 #include "output_generator.h"
 
+vector<vector<char>> process_timeline;
+unordered_map<char,int> finishTime;
+unordered_map<char,int> TAT;
+unordered_map<char,float> normTurn;
+
+const string schedueling_algorithms[9] = {"","FCFS","RR","SPN","SRT","HRRN","FB-1","FB-2i","Aging"};
+
+// Generic function to render timeline based on states of process
+void renderTimeline(vector<Process> &process){
+        for(auto& it_process_timeline: process_timeline){
+            for(auto& it_process: process){
+            
+                if(it_process_timeline[0] == it_process.name){
+                    if(it_process.state == RUNNING){
+                        it_process_timeline.push_back('*');
+                        
+                    }
+                    else if(it_process.state == WAITING)
+                        it_process_timeline.push_back('.');
+                    else{
+                        it_process_timeline.push_back(' ');
+                    }
+                }
+            
+            }
+        }
+}
+
+bool sortByRemainingTime(const Process& p1, const Process& p2){
+    return p1.remainingTime > p2.remainingTime;
+}
+
+void ShortestRemainingTime(vector<Process> &process, Arguments args){
+    
+    for(int i=0;i<args.lastInstance;i++){
+        
+
+        // Min-Heap for remaining time
+        priority_queue <Process, vector<Process>, decltype(&sortByRemainingTime) > shortest_rem_time(sortByRemainingTime); 
+        for(auto& it_process:process){
+            if(it_process.state!= FINISHED && it_process.arrivalTime<=i){
+                shortest_rem_time.push(it_process); // Heap contains only arrived processes
+                if(it_process.state == NOT_ARRIVED || it_process.state == RUNNING )
+                    it_process.state = WAITING;
+            }
+        }
+        
+        for(auto& it_process: process){
+            
+            if(shortest_rem_time.top().name == it_process.name){
+                it_process.state = RUNNING;
+                it_process.remainingTime--;
+            }
+            
+        }
+        renderTimeline(process);
+
+        // Checking for finishing
+        for(auto& it_process: process){
+            if(it_process.state!= FINISHED && it_process.remainingTime==0){
+                            it_process.state = FINISHED;
+                            finishTime[it_process.name] = i+1;
+                            TAT[it_process.name] = finishTime[it_process.name] - it_process.arrivalTime;
+                            normTurn[it_process.name] = (float) (TAT[it_process.name])/ it_process.serviceTime_priority;
+            }
+        }
+
+        
+
+
+    }
+}
+
 int main(int argc, char** argv)
 {
     Arguments args;
@@ -8,7 +81,7 @@ int main(int argc, char** argv)
     // line 1
     string trace_stats;
     getline(cin, trace_stats);
-    args.trace_stats = trace_stats;
+    args.trace_stats = trace_stats; 
     cout << "mode: "<< args.trace_stats << endl;
 
     // line 2
@@ -71,6 +144,10 @@ int main(int argc, char** argv)
         getline(ss, t, ',');
         // Priority will be used in aging, service time otherwise
         p.serviceTime_priority = stoi(t);
+        p.remainingTime = stoi(t);
+        process_timeline.push_back({p.name});
+        p.state = NOT_ARRIVED;
+
         cout<<endl;
         cout << "name:" << p.name << endl;
         cout << "arrival: " << p.arrivalTime << endl;
@@ -82,7 +159,7 @@ int main(int argc, char** argv)
 
     // Algorithms
     for(auto algorithm: args.algorithms){
-        switch (algorithm.first)
+        switch (algorithm.first) 
         {
         case 1:
             // FCFS()
@@ -94,7 +171,11 @@ int main(int argc, char** argv)
             // SPN()
             break;
         case 4:
-            // SRT()
+            ShortestRemainingTime(process,args);
+            if(args.trace_stats=="trace")
+                printTrace(schedueling_algorithms[algorithm.first],args.lastInstance,process_timeline);
+            if(args.trace_stats=="stats")
+                printStats(schedueling_algorithms[algorithm.first],process,finishTime,TAT,normTurn,args.numberOfProcess);
             break;
         case 5:
             // HRRN()
@@ -114,7 +195,6 @@ int main(int argc, char** argv)
         }
     }
     
-
     
     return 0;
 }
