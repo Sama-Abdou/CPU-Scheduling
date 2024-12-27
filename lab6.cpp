@@ -1,12 +1,23 @@
 #include "lab6.h"
 #include "output_generator.h"
 
+
+
 vector<vector<char>> process_timeline;
 unordered_map<char,int> finishTime;
 unordered_map<char,int> TAT;
 unordered_map<char,float> normTurn;
 
-const string schedueling_algorithms[9] = {"","FCFS","RR","SPN","SRT","HRRN","FB-1","FB-2i","Aging"};
+
+void clearAllTemps(vector<Process> &process){
+    process_timeline.clear();
+    for(auto& it_process:process){
+        process_timeline.push_back({it_process.name});
+    }
+    finishTime.clear();
+    TAT.clear();
+    normTurn.clear();
+}
 
 // Generic function to render timeline based on states of process
 void renderTimeline(vector<Process> &process){
@@ -28,17 +39,11 @@ void renderTimeline(vector<Process> &process){
             }
         }
 }
-void clearAllTemps(vector<Process> &process){
-    process_timeline.clear();
-    for(auto& it_process:process){
-        process_timeline.push_back({it_process.name});
-    }
-    finishTime.clear();
-    TAT.clear();
-    normTurn.clear();
-}
 
 bool sortByRemainingTime(const Process& p1, const Process& p2){
+    return p1.remainingTime > p2.remainingTime;
+}
+bool sortByArrivalTime(const Process& p1, const Process& p2){
     return p1.remainingTime > p2.remainingTime;
 }
 
@@ -116,10 +121,12 @@ void HighestResponseRatioNext(vector<Process> &process, Arguments args){
                     it_process.remainingTime--;
                     renderTimeline(process);
                 }
-                it_process.state=FINISHED;
+                
+                
+                it_process.state = FINISHED;
                 finishTime[it_process.name] = i+1;
                 TAT[it_process.name] = finishTime[it_process.name] - it_process.arrivalTime;
-                normTurn[it_process.name] = (float) (TAT[it_process.name])/ it_process.serviceTime_priority;
+                normTurn[it_process.name] = (float)(TAT[it_process.name]) / it_process.serviceTime_priority;
                 break;
 
 
@@ -129,6 +136,148 @@ void HighestResponseRatioNext(vector<Process> &process, Arguments args){
         i++;
     }
 }
+void FB(vector<Process> &processes, Arguments args,bool fb_2i) { 
+    unordered_map<int, queue<Process*>> FBQ; // Feedback queues
+    unordered_set<char> processes_inserted; // Track inserted processes
+
+    int i = 0;
+    
+    // Simulation loop until the last time instance
+    while (i < args.lastInstance) {
+        // Add processes to the first queue based on arrival time
+        for (auto &proc : processes) {
+            if (proc.state != FINISHED && proc.arrivalTime <= i) {
+                proc.state = WAITING; // Correctly set to WAITING
+                if( processes_inserted.find(proc.name) == processes_inserted.end()) {
+                   
+                    processes_inserted.insert(proc.name);
+                    FBQ[0].push(&proc); 
+                }
+            }
+        }
+
+        // Process feedback queues
+        bool processed = false;
+        for (int level = 0; level < FBQ.size(); level++) {
+            if (!FBQ[level].empty()) {
+                Process *current = FBQ[level].front();
+                FBQ[level].pop();
+                
+                int limit = fb_2i? pow(2,level):1;
+                for(int j=0;j<limit;j++){
+                    for (auto &proc : processes) {
+                        if (proc.state != FINISHED && proc.arrivalTime <= i) {
+                        
+                            proc.state = WAITING; 
+                            if(processes_inserted.find(proc.name) == processes_inserted.end()){
+                                processes_inserted.insert(proc.name);
+                                FBQ[0].push(&proc); 
+                            }
+                        }
+                    }
+                    current->state = RUNNING;  
+                    current->remainingTime--;
+                    i++;
+                    renderTimeline(processes);
+                    if (current->remainingTime == 0) break;
+                    
+                    
+                }
+                // Check for processes because i is incremented.
+                for (auto &proc : processes) {
+                    if (proc.state != FINISHED && proc.arrivalTime <= i) {
+                    
+                        proc.state = WAITING; 
+                        if(processes_inserted.find(proc.name) == processes_inserted.end()){
+                            processes_inserted.insert(proc.name);
+                            FBQ[0].push(&proc); 
+                        }
+                    }
+                }
+
+                
+
+                // Check if the process is finished
+                if (current->remainingTime == 0) {
+                    current->state = FINISHED;
+                    //renderTimeline(processes);
+                    finishTime[current->name] = i;
+                    TAT[current->name] = finishTime[current->name] - current->arrivalTime;
+                    normTurn[current->name] = (float)(TAT[current->name]) / current->serviceTime_priority;
+                } else {
+                    if(processes_inserted.size()==1)
+                        FBQ[level].push(current);
+                    else
+                        FBQ[level + 1].push(current); 
+                }
+
+                processed = true;
+                break; // Only one process executes at a time
+            }
+        }
+    }
+}
+void RoundRobin(vector<Process> &processes, Arguments args,int parameter){
+    int i=0;
+    int processIndex=-1;
+    queue<Process*> processes_arrived;
+    unordered_set<char> processes_inserted;
+    sort(processes.begin(),processes.end(),sortByArrivalTime);
+    while(i<args.lastInstance){
+        for(auto &it_process:processes){
+            if(it_process.state!= FINISHED && it_process.arrivalTime<=i){
+                    if(it_process.state == NOT_ARRIVED || it_process.state == RUNNING )
+                        it_process.state = WAITING;
+                        if( processes_inserted.find(it_process.name) == processes_inserted.end()) {
+                   
+                            processes_inserted.insert(it_process.name);
+                            processes_arrived.push(&it_process);
+                        }
+            }
+        }
+        int counter = parameter;
+        Process* currentProcess = processes_arrived.front();
+        processes_arrived.pop();
+        while(counter){
+            currentProcess->remainingTime--;
+            currentProcess->state=RUNNING;
+            counter--;
+            renderTimeline(processes);
+            i++;
+            for(auto &it_process:processes){
+                if(it_process.state!= FINISHED && it_process.arrivalTime<=i){
+                        if(it_process.state == NOT_ARRIVED || it_process.state == RUNNING )
+                            it_process.state = WAITING;
+                        if( processes_inserted.find(it_process.name) == processes_inserted.end()) {
+                   
+                            processes_inserted.insert(it_process.name);
+                            processes_arrived.push(&it_process);
+                        }
+                }
+            }
+            
+            
+            
+            if (currentProcess->remainingTime == 0) {
+                    currentProcess->state = FINISHED;
+                    finishTime[currentProcess->name] = i;
+                    TAT[currentProcess->name] = finishTime[currentProcess->name] - currentProcess->arrivalTime;
+                    normTurn[currentProcess->name] = (float)(TAT[currentProcess->name]) / currentProcess->serviceTime_priority;
+                    break;
+            }
+            
+
+               
+        }
+        if(currentProcess->remainingTime!=0){
+            processes_arrived.push(currentProcess);
+        }
+        
+    }
+}
+
+// sort  by arrival time
+// process index in processes arrived only
 
 int main(int argc, char** argv)
 {
@@ -138,7 +287,6 @@ int main(int argc, char** argv)
     string trace_stats;
     getline(cin, trace_stats);
     args.trace_stats = trace_stats; 
-    cout << "mode: "<< args.trace_stats << endl;
 
     // line 2
     string algorithms;
@@ -149,7 +297,6 @@ int main(int argc, char** argv)
 
     while (!ss.eof()) {
         getline(ss, algo_param, del); // Tokenization using delimiter = ','
-        cout << algo_param << endl;
         int pos = algo_param.find('-');
 
         if (pos != -1){ //it means there is - (dash) in the token (algorithm) e.g. 5-6
@@ -161,23 +308,16 @@ int main(int argc, char** argv)
             args.algorithms.push_back({stoi(algo_param),-1});
         }
     }
-    for(auto it:args.algorithms){
-        cout <<"algorithm: "<< it.first << endl;
-        cout <<"quantum: "<< it.second << endl; // it will be negative one if no parameter
-        cout<<endl;
-    }
 
     // line 3
     int lastInstance;
     cin >> lastInstance;
     args.lastInstance = lastInstance;
-    cout << "last: "<< args.lastInstance << endl;
 
     // line 4
     int numberOfProcess;
     cin >> numberOfProcess;
     args.numberOfProcess = numberOfProcess;
-    cout << "number: "<< args.numberOfProcess << endl;
     cin.ignore();
 
     // line 5
@@ -204,12 +344,6 @@ int main(int argc, char** argv)
         process_timeline.push_back({p.name});
         p.state = NOT_ARRIVED;
 
-        cout<<endl;
-        cout << "name:" << p.name << endl;
-        cout << "arrival: " << p.arrivalTime << endl;
-        cout << "service/priority: " << p.serviceTime_priority << endl;
-        cout<<endl;
-
         process.push_back(p);
     }
 
@@ -222,7 +356,12 @@ int main(int argc, char** argv)
             // FCFS()
             break;
         case 2:
-            // RR()
+            RoundRobin(process_copy,args,algorithm.second);
+            if(args.trace_stats=="trace")
+                printTrace(algorithm,args.lastInstance,process_timeline);
+            if(args.trace_stats=="stats")
+                printStats(algorithm,process_copy,finishTime,TAT,normTurn,args.numberOfProcess);
+            clearAllTemps(process);
             break;
         case 3:
             // SPN()
@@ -230,24 +369,35 @@ int main(int argc, char** argv)
         case 4:
             ShortestRemainingTime(process_copy,args);
             if(args.trace_stats=="trace")
-                printTrace(schedueling_algorithms[algorithm.first],args.lastInstance,process_timeline);
+                printTrace(algorithm,args.lastInstance,process_timeline);
             if(args.trace_stats=="stats")
-                printStats(schedueling_algorithms[algorithm.first],process_copy,finishTime,TAT,normTurn,args.numberOfProcess);
+                printStats(algorithm,process_copy,finishTime,TAT,normTurn,args.numberOfProcess);
             clearAllTemps(process);
             break;
         case 5:
             HighestResponseRatioNext(process_copy,args);
             if(args.trace_stats=="trace")
-                printTrace(schedueling_algorithms[algorithm.first],args.lastInstance,process_timeline);
+                printTrace(algorithm,args.lastInstance,process_timeline);
             if(args.trace_stats=="stats")
-                printStats(schedueling_algorithms[algorithm.first],process_copy,finishTime,TAT,normTurn,args.numberOfProcess);
+                printStats(algorithm,process_copy,finishTime,TAT,normTurn,args.numberOfProcess);
             clearAllTemps(process);
             break;
         case 6:
-            // FB-1()
+            FB(process_copy,args,false);
+            if(args.trace_stats=="trace")
+                printTrace(algorithm,args.lastInstance,process_timeline);
+            if(args.trace_stats=="stats")
+                printStats(algorithm,process_copy,finishTime,TAT,normTurn,args.numberOfProcess);
+            clearAllTemps(process);
+            break;
             break;
         case 7:
-            // FB-2i()
+            FB(process_copy,args,true);
+            if(args.trace_stats=="trace")
+                printTrace(algorithm,args.lastInstance,process_timeline);
+            if(args.trace_stats=="stats")
+                printStats(algorithm,process_copy,finishTime,TAT,normTurn,args.numberOfProcess);
+            clearAllTemps(process);
             break;
         case 8:
             // aging()

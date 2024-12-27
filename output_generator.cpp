@@ -1,7 +1,13 @@
 #include "output_generator.h"
 
-void printHeader(string name, int lastInstance) {
-    cout << name << "\033[7G" ;
+
+
+void printHeader(pair<int,int> algo, int lastInstance) {
+    if(algo.second==-1)
+        cout << schedueling_algorithms[algo.first] << "\033[7G" ;
+    else{
+        cout <<schedueling_algorithms[algo.first]<<'-'<<algo.second << "\033[7G" ;
+    }
     for (int i = 0; i <= lastInstance; i++) cout << i % 10 << " ";
     cout << endl;
     cout << string(48, '-') << endl;
@@ -11,9 +17,13 @@ void printFooter() {
     cout << string(48, '-') << endl << endl;
 }
 
-void printStats(string name, vector<Process> &process, unordered_map<char,int> &finishTime, unordered_map<char,int> &TAT, unordered_map<char,float> &normTurn, int numberOfProcess) {
+void printStats(pair<int,int> algo, vector<Process> &process, unordered_map<char,int> &finishTime, unordered_map<char,int> &TAT, unordered_map<char,float> &normTurn, int numberOfProcess) {
     float totalTAT = 0, totalNormTurn = 0;
-    cout << name << endl;
+    if(algo.second==-1)
+        cout << schedueling_algorithms[algo.first]  << endl ;
+    else{
+        cout << schedueling_algorithms[algo.first] <<'-'<<algo.second << endl ;
+    }
     cout << "Process    |";
     for (const auto &p : process) {
         cout << setw(3) << p.name << setw(3) << "|";
@@ -53,8 +63,8 @@ void printStats(string name, vector<Process> &process, unordered_map<char,int> &
     cout << fixed << setprecision(2) << " " << totalNormTurn / numberOfProcess << "|" << endl << endl;
 }
 
-void printTrace(string name, int lastInstance, vector<vector<char>> &processes_timeline){
-    printHeader(name, lastInstance);
+void printTrace(pair<int,int> algo, int lastInstance, vector<vector<char>> &processes_timeline){
+    printHeader(algo, lastInstance);
     for(auto process:processes_timeline){
         cout<<process[0]<<"     ";
         for(int i=1;i<process.size();i++){

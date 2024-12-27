@@ -4,6 +4,8 @@
 #include <bits/stdc++.h> // stl library
 using namespace std;
 
+
+
 enum state {RUNNING, WAITING, NOT_ARRIVED, FINISHED};
 
 struct Arguments {

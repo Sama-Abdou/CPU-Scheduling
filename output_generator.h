@@ -2,11 +2,12 @@
 #define OUTPUT_GENERATOR_H
 
 #include "lab6.h"
+const string schedueling_algorithms[9] = {"","FCFS","RR","SPN","SRT","HRRN","FB-1","FB-2i","Aging"};
 
-void printHeader(string name, int lastInstance);
+void printHeader(pair<int,int> algo, int lastInstance);
 void printFooter();
-void printStats(string name, vector<Process> &process, unordered_map<char,int> &finishTime, unordered_map<char,int> &TAT, unordered_map<char,float> &normTurn, int numberOfProcess);
-void printTrace(string name, int lastInstance, vector<vector<char>> &processes_timeline);
+void printStats(pair<int,int> algo, vector<Process> &process, unordered_map<char,int> &finishTime, unordered_map<char,int> &TAT, unordered_map<char,float> &normTurn, int numberOfProcess);
+void printTrace(pair<int,int> algo, int lastInstance, vector<vector<char>> &processes_timeline);
 
 
 #endif // OUTPUT_GENERATOR_H
