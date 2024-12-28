@@ -41,7 +41,7 @@ bool sortByRemainingTime(const Process& p1, const Process& p2){
     return p1.remainingTime > p2.remainingTime;
 }
 bool sortByArrivalTime(const Process& p1, const Process& p2){
-    return p1.remainingTime > p2.remainingTime;
+    return p1.arrivalTime < p2.arrivalTime;
 }
 
 void ShortestRemainingTime(vector<Process> &process, Arguments args){
@@ -133,7 +133,7 @@ void FB(vector<Process> &processes, Arguments args,bool fb_2i) {
     unordered_set<char> processes_inserted; // Track inserted processes
 
     int i = 0;
-    
+    sort(processes.begin(),processes.end(),sortByArrivalTime);
     // Simulation loop until the last time instance
     while (i < args.lastInstance) {
         // Add processes to the first queue based on arrival time
