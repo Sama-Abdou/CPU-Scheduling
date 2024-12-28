@@ -1,13 +1,10 @@
 #include "lab6.h"
 #include "output_generator.h"
 
-
-
 vector<vector<char>> process_timeline;
 unordered_map<char,int> finishTime;
 unordered_map<char,int> TAT;
 unordered_map<char,float> normTurn;
-
 
 void clearAllTemps(vector<Process> &process){
     process_timeline.clear();
@@ -40,16 +37,6 @@ void renderTimeline(vector<Process> &process){
     }
 }
 
-void clearAllTemps(vector<Process> &process){
-    process_timeline.clear();
-    for(auto& it_process:process){
-        process_timeline.push_back({it_process.name});
-    }
-    finishTime.clear();
-    TAT.clear();
-    normTurn.clear();
-}
-
 bool sortByRemainingTime(const Process& p1, const Process& p2){
     return p1.remainingTime > p2.remainingTime;
 }
@@ -61,7 +48,6 @@ void ShortestRemainingTime(vector<Process> &process, Arguments args){
     
     for(int i=0;i<args.lastInstance;i++){
         
-
         // Min-Heap for remaining time
         priority_queue <Process, vector<Process>, decltype(&sortByRemainingTime) > shortest_rem_time(sortByRemainingTime); 
         for(auto& it_process:process){
@@ -91,10 +77,6 @@ void ShortestRemainingTime(vector<Process> &process, Arguments args){
                 normTurn[it_process.name] = (float) (TAT[it_process.name])/ it_process.serviceTime_priority;
             }
         }
-
-        
-
-
     }
 }
 void HighestResponseRatioNext(vector<Process> &process, Arguments args){
@@ -287,37 +269,46 @@ void RoundRobin(vector<Process> &processes, Arguments args,int parameter){
 }
 
 void FCFS(vector<Process> &process, Arguments args) {
-    for (int i = 0; i < args.lastInstance; i++) {
+    int currentTime = 0;
+    int processIndex = 0;
 
-        // Update process states based on arrival time
-        for (auto& it_process : process) {
-            if (it_process.state != FINISHED && it_process.arrivalTime <= i) {
-                if (it_process.state == NOT_ARRIVED) {
-                    it_process.state = WAITING;
+    while (currentTime < args.lastInstance) {
+        // Find the next process to execute
+        for (; processIndex < process.size(); processIndex++) {
+            Process &currentProcess = process[processIndex];
+            
+            if (currentProcess.arrivalTime <= currentTime && currentProcess.state != FINISHED) {
+                if (currentProcess.state == NOT_ARRIVED) {
+                    currentProcess.state = WAITING;
                 }
+
+                currentProcess.state = RUNNING;
+
+                while (currentProcess.remainingTime > 0) {
+                    currentProcess.remainingTime--;
+                    renderTimeline(process);
+                    currentTime++;
+
+                    for (auto &it_process : process) {
+                        if (it_process.arrivalTime <= currentTime && it_process.state == NOT_ARRIVED) {
+                            it_process.state = WAITING;
+                        }
+                    }
+                }
+
+                currentProcess.state = FINISHED;
+                finishTime[currentProcess.name] = currentTime;
+                TAT[currentProcess.name] = finishTime[currentProcess.name] - currentProcess.arrivalTime;
+                normTurn[currentProcess.name] = (float)TAT[currentProcess.name] / currentProcess.serviceTime_priority;
+
+                break;
             }
         }
 
-        for (auto& it_process : process) {
-            if (it_process.state == WAITING || it_process.state == RUNNING) {
-                it_process.state = RUNNING;
-
-                it_process.remainingTime--;
-
-                break; // make sure that only one process run (prevent overlapping/non-preemptive) 
-            }
+        if (processIndex >= process.size()) {
+            currentTime++;
+            renderTimeline(process);
         }
-
-        // Checking for finishing
-        for(auto& it_process: process){
-            if(it_process.state!= FINISHED && it_process.remainingTime==0){
-                it_process.state = FINISHED;
-                finishTime[it_process.name] = i+1;
-                TAT[it_process.name] = finishTime[it_process.name] - it_process.arrivalTime;
-                normTurn[it_process.name] = (float) (TAT[it_process.name]) / it_process.serviceTime_priority;
-            }
-        }
-        renderTimeline(process);
     }
 }
 
@@ -543,6 +534,14 @@ int main(int argc, char** argv)
                 printStats(algorithm,process_copy,finishTime,TAT,normTurn,args.numberOfProcess);
             clearAllTemps(process);
             break;
+        case 4:
+            ShortestRemainingTime(process_copy,args);
+            if(args.trace_stats=="trace")
+                printTrace(algorithm,args.lastInstance,process_timeline);
+            if(args.trace_stats=="stats")
+                printStats(algorithm,process_copy,finishTime,TAT,normTurn,args.numberOfProcess);
+            clearAllTemps(process);
+            break;
         case 5:
             HighestResponseRatioNext(process_copy,args);
             if(args.trace_stats=="trace")
@@ -571,8 +570,6 @@ int main(int argc, char** argv)
             aging(process_copy,args,algorithm.second);
             if(args.trace_stats=="trace")
                 printTrace(algorithm,args.lastInstance,process_timeline);
-            if(args.trace_stats=="stats")
-                printStats(algorithm,process_copy,finishTime,TAT,normTurn,args.numberOfProcess);
             clearAllTemps(process);
             break;
         

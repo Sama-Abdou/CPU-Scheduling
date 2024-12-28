@@ -1,14 +1,18 @@
 #include "output_generator.h"
 
-
-
 void printHeader(pair<int,int> algo, int lastInstance) {
-    if(algo.second==-1)
-        cout << schedueling_algorithms[algo.first] << "\033[7G" ;
-    else{
-        cout <<schedueling_algorithms[algo.first]<<'-'<<algo.second << "\033[7G" ;
+    if(algo.second==-1) {
+        cout << schedueling_algorithms[algo.first];
+        cout << string(6 - schedueling_algorithms[algo.first].length(), ' ');
+    } else {
+        string header = schedueling_algorithms[algo.first] + "-" + to_string(algo.second);
+        cout << header;
+        cout << string(6 - header.length(), ' ');
     }
-    for (int i = 0; i <= lastInstance; i++) cout << i % 10 << " ";
+    
+    for (int i = 0; i <= lastInstance; i++) {
+        cout << i % 10 << " ";
+    }
     cout << endl;
     cout << string(48, '-') << endl;
 }
