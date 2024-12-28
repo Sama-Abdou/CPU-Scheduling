@@ -102,10 +102,9 @@ void FCFS(vector<Process> &process, Arguments args) {
 
                 it_process.remainingTime--;
 
-                break; // make sure that only one process run (prevent overlapping) 
+                break; // make sure that only one process run (prevent overlapping/non-preemptive) 
             }
         }
-        renderTimeline(process);
 
         // Checking for finishing
         for(auto& it_process: process){
@@ -115,6 +114,127 @@ void FCFS(vector<Process> &process, Arguments args) {
                 TAT[it_process.name] = finishTime[it_process.name] - it_process.arrivalTime;
                 normTurn[it_process.name] = (float) (TAT[it_process.name]) / it_process.serviceTime_priority;
             }
+        }
+        renderTimeline(process);
+    }
+}
+
+void SPN(vector<Process> &process, Arguments args) {
+    Process* running_process = nullptr;
+    
+    for (int i = 0; i < args.lastInstance; i++) {
+        if (running_process && running_process->remainingTime == 0) {
+            running_process->state = FINISHED;
+            finishTime[running_process->name] = i;
+            TAT[running_process->name] = finishTime[running_process->name] - running_process->arrivalTime;
+            normTurn[running_process->name] = (float)TAT[running_process->name] / running_process->serviceTime_priority;
+            running_process = nullptr;
+        }
+
+        for (auto &it_process : process) {
+            if (it_process.arrivalTime == i) {
+                it_process.state = WAITING;
+            }
+        }
+
+        if (running_process == nullptr) {
+            int shortest_time = INT_MAX;
+            Process* shortest_process = nullptr;
+
+            for (auto &it_process : process) {
+                if (it_process.state == WAITING && 
+                    it_process.serviceTime_priority < shortest_time) {
+                    shortest_time = it_process.serviceTime_priority;
+                    shortest_process = &it_process;
+                }
+            }
+
+            if (shortest_process) {
+                shortest_process->state = RUNNING;
+                running_process = shortest_process;
+            }
+        }
+
+        if (running_process) {
+            running_process->remainingTime--;
+        }
+
+        renderTimeline(process);
+    }
+
+    if (running_process && running_process->remainingTime == 0) {
+        running_process->state = FINISHED;
+        finishTime[running_process->name] = args.lastInstance;
+        TAT[running_process->name] = finishTime[running_process->name] - running_process->arrivalTime;
+        normTurn[running_process->name] = (float)TAT[running_process->name] / running_process->serviceTime_priority;
+    }
+}
+
+void aging(vector<Process> &process, Arguments args, int quantum) {
+    vector<Process*> waiting_processes;
+    unordered_map<char,int> priority;
+
+    for (auto& p : process)
+        priority[p.name] = p.serviceTime_priority;
+
+    for (int i = 0; i < args.lastInstance; i++) {
+        // Add processes that have arrived to the waiting list
+        for (auto& p : process) {
+            if (p.arrivalTime <= i) {
+                if (p.state == NOT_ARRIVED) {
+                    p.state = WAITING;
+                }
+                if (p.state == WAITING) {
+                    if (!waiting_processes.empty())
+                        p.serviceTime_priority++;
+
+                    int flag = 0;
+                    for (auto& waiting : waiting_processes) {
+                        if (waiting->name == p.name) {
+                            flag = 1;
+                        }
+                    }
+                    if (flag == 0) {
+                        waiting_processes.push_back(&p);
+                    }
+                }
+                if (p.state == FINISHED) {
+                    waiting_processes.push_back(&p);
+                    p.state = WAITING;
+                }
+            }
+        }  
+        
+        // If there are processes to run, select the one with the highest priority 
+        if (!waiting_processes.empty()) {
+            // Sort processes by priority
+            sort(waiting_processes.begin(), waiting_processes.end(),
+                [](Process* a, Process* b) { return a->serviceTime_priority > b->serviceTime_priority; });
+
+            // Select the process with the highest priority
+            Process* selected_process = waiting_processes.front();
+            
+            int count = quantum;
+
+            while (count-- && i < args.lastInstance){
+                selected_process->state = RUNNING;
+                renderTimeline(process);
+                i++;
+            }
+            i--;
+
+            // After running, the process will be in waiting state again for the next time slice
+            selected_process->state = FINISHED;
+            selected_process->serviceTime_priority = priority[selected_process->name];
+
+            // Remove the process from the waiting list to prevent it from being scheduled again
+            waiting_processes.erase(remove(waiting_processes.begin(), waiting_processes.end(), selected_process), waiting_processes.end());
+            
+        } else {
+            // If no process is waiting, just add a blank space to the timeline
+            Process* selected_process;
+            selected_process->state = NOT_ARRIVED;  
+            renderTimeline(process);
         }
     }
 }
@@ -209,7 +329,12 @@ int main(int argc, char** argv)
             // RR()
             break;
         case 3:
-            // SPN()
+            SPN(process_copy,args);
+            if(args.trace_stats=="trace")
+                printTrace(schedueling_algorithms[algorithm.first],args.lastInstance,process_timeline);
+            if(args.trace_stats=="stats")
+                printStats(schedueling_algorithms[algorithm.first],process_copy,finishTime,TAT,normTurn,args.numberOfProcess);
+            clearAllTemps(process);
             break;
         case 4:
             ShortestRemainingTime(process_copy,args);
@@ -229,7 +354,12 @@ int main(int argc, char** argv)
             // FB-2i()
             break;
         case 8:
-            // aging()
+            aging(process_copy,args,algorithm.second);
+            if(args.trace_stats=="trace")
+                printTrace(schedueling_algorithms[algorithm.first],args.lastInstance,process_timeline);
+            if(args.trace_stats=="stats")
+                printStats(schedueling_algorithms[algorithm.first],process_copy,finishTime,TAT,normTurn,args.numberOfProcess);
+            clearAllTemps(process);
             break;
         
         default:
