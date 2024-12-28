@@ -500,7 +500,6 @@ int main(int argc, char** argv)
 
         process.push_back(p);
     }
-
     sort( process.begin(), process.end(),
               []( const Process &p1, const Process &p2 )
                  { return ( p1.arrivalTime < p2.arrivalTime ); });
